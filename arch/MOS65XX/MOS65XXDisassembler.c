@@ -419,7 +419,11 @@ static void fillDetails(MCInst *MI, unsigned char opcode)
 
 	switch(am) {
 		case MOS65XX_AM_IMP:
+			break;
 		case MOS65XX_AM_REL:
+			detail->mos65xx.operands[detail->mos65xx.op_count].type = MOS65XX_OP_MEM;
+			detail->mos65xx.operands[detail->mos65xx.op_count].mem = MI->address + (signed char)MI->Operands[0].ImmVal + 2;
+			detail->mos65xx.op_count++;
 			break;
 		case MOS65XX_AM_IMM:
 			detail->mos65xx.operands[detail->mos65xx.op_count].type = MOS65XX_OP_IMM;

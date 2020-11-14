@@ -126,7 +126,7 @@ typedef struct cs_mos65xx_op {
 	union {
 		mos65xx_reg reg;	///< register value for REG operand
 		uint8_t imm;		///< immediate value for IMM operand
-		uint16_t mem;		///< base/index/scale/disp value for MEM operand
+		uint16_t mem;		///< address for MEM operand
 	};
 } cs_mos65xx_op;
 
