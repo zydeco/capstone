@@ -65,6 +65,42 @@ build_iOS() {
   CFLAGS="$IOS_CFLAGS" LDFLAGS="$IOS_LDFLAGS" MACOS_UNIVERSAL=yes ${MAKE}
 }
 
+build_xcframework() {
+  CONFS=$@
+  if [ -z "$CONFS" ]; then
+    CONFS="macosx-x86_64 macosx-arm64 iphoneos-armv7s iphoneos-arm64 iphonesimulator-x86_64 iphonesimulator-arm64"
+  fi
+  # clean
+  rm -rf build-xcf-*
+  # build all
+  for conf in $CONFS; do
+    sdk=`echo $conf | cut -d '-' -f 1`
+    arch=`echo $conf | cut -d '-' -f 2`
+    echo "Building for sdk $sdk, architecture $arch"
+    sysroot=`xcrun --sdk $sdk --show-sdk-path`
+    export CC=`xcrun --sdk $sdk -f clang`
+    export LIBARCHS=$arch
+    export BUILDDIR="build-xcf-$sdk-$arch"
+    common_flags="-arch $arch -isysroot $sysroot"
+    CFLAGS="$common_flags -Os -fembed-bitcode -Wimplicit" LDFLAGS="$common_flags" MACOS_UNIVERSAL=no CAPSTONE_SHARED=no CAPSTONE_BUILD_CORE_ONLY=yes ${MAKE}
+  done
+  # make fat binaries
+  xcf_libs=""
+  for conf in $CONFS; do
+    sdk=`echo $conf | cut -d '-' -f 1`
+    BUILDDIR="build-xcf-$sdk"
+    if [ -d $BUILDDIR ]; then continue; fi
+    mkdir $BUILDDIR
+    lipo build-xcf-$sdk-*/libcapstone.a -create -output $BUILDDIR/libcapstone.a
+    xcf_libs="$xcf_libs -library $BUILDDIR/libcapstone.a -headers build-xcf-headers"
+  done
+  # add the headers
+  mkdir build-xcf-headers
+  cp -r include/capstone build-xcf-headers/capstone
+  # xcf the fat libs
+  xcodebuild -create-xcframework $xcf_libs -output libcapstone.xcframework
+}
+
 install() {
   # Mac OSX needs to find the right directory for pkgconfig
   if [ "$UNAME" = Darwin ]; then
@@ -145,6 +181,7 @@ case "$TARGET" in
       ${MAKE} "$@";;
   "mac-universal" ) MACOS_UNIVERSAL=yes ${MAKE} "$@";;
   "mac-universal-no" ) MACOS_UNIVERSAL=no ${MAKE} "$@";;
+  "xcframework" ) build_xcframework "$@";;
   "xlc31" ) CC=xlc CFLAGS=-q31 LDFLAGS=-q31 ${MAKE} "$@";;
   "xlc32" ) CC=xlc CFLAGS=-q32 LDFLAGS=-q32 ${MAKE} "$@";;
   "xlc64" ) CC=xlc CFLAGS=-q64 LDFLAGS=-q64 ${MAKE} "$@";;
